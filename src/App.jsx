@@ -468,7 +468,7 @@ const AppContent = () => {
       console.log(pair[0]+ ':', pair[1]);
     }
     try {
-      const res = await fetch('http://localhost:8000/upload-and-process', {
+      const res = await fetch('https://trade-backend-88u2.onrender.com/upload-and-process', {
         method: 'POST',
         body: formDataToSend
       });
