@@ -1,0 +1,6 @@
+# Ignore heavy, useless stuff
+node_modules
+dist
+*.log
+.env
+.DS_Store
