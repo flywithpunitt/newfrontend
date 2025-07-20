@@ -37,6 +37,17 @@ ChartJS.register(
   annotationPlugin
 )
 
+function customSort(data, key = "open") {
+  return [...data].sort((a, b) => {
+    const aStr = a[key].toString();
+    const bStr = b[key].toString();
+    if (aStr.length !== bStr.length) {
+      return aStr.length - bStr.length;
+    }
+    return parseFloat(aStr) - parseFloat(bStr);
+  });
+}
+
 // Wrap the main app content with authentication check
 const AppContent = () => {
   const { user, loading: authLoading } = useAuth();
@@ -468,7 +479,7 @@ const AppContent = () => {
       console.log(pair[0]+ ':', pair[1]);
     }
     try {
-      const res = await fetch('https://trade-backend-88u2.onrender.com/upload-and-process', {
+      const res = await fetch('http://localhost:8000/upload-and-process', {
         method: 'POST',
         body: formDataToSend
       });
@@ -595,18 +606,18 @@ const AppContent = () => {
                         <div style={{ width: `${Math.max(chartData.volume_vs_open.length * 18, 320)}px`, height: '300px', display: 'inline-block' }}>
                           <Bar
                             data={{
-                              labels: chartData.volume_vs_open.map((item, i) => `${item.open} (${i})`),
+                              labels: customSort(chartData.volume_vs_open, 'open').map((item, i) => `${item.open} (${i})`),
                               datasets: [{
                                 label: 'Volume vs Open',
-                                data: chartData.volume_vs_open.map(item => Number(item.Volume)),
-                                time: chartData.volume_vs_open.map(item => item.time),
+                                data: customSort(chartData.volume_vs_open, 'open').map(item => Number(item.Volume)),
+                                time: customSort(chartData.volume_vs_open, 'open').map(item => item.time),
                                 backgroundColor: 'rgba(51, 102, 204, 0.7)', // modern blue
                                 borderRadius: 8,
                                 hoverBackgroundColor: 'rgba(51, 102, 204, 1)',
                                 maxBarThickness: 18
                               }]
                             }}
-                            options={getBarOptions('Volume vs Open', chartData.volume_vs_open.map(item => Number(item.Volume)))}
+                            options={getBarOptions('Volume vs Open', customSort(chartData.volume_vs_open, 'open').map(item => Number(item.Volume)))}
                           />
                         </div>
                       </div>
@@ -614,7 +625,7 @@ const AppContent = () => {
                   </div>
                   {/* Table */}
                   <div className="flex-1 max-w-xs flex items-center justify-center">
-                    <DataTable data={chartData.volume_vs_open} priceField="open" enhanced />
+                    <DataTable data={customSort(chartData.volume_vs_open, 'open')} priceField="open" enhanced />
                   </div>
                 </div>
               )}
@@ -632,18 +643,18 @@ const AppContent = () => {
                         <div style={{ width: `${Math.max(chartData.volume_vs_close.length * 18, 320)}px`, height: '300px', display: 'inline-block' }}>
                           <Bar
                             data={{
-                              labels: chartData.volume_vs_close.map((item, i) => `${item.close} (${i})`),
+                              labels: customSort(chartData.volume_vs_close, 'close').map((item, i) => `${item.close} (${i})`),
                               datasets: [{
                                 label: 'Volume vs Close',
-                                data: chartData.volume_vs_close.map(item => Number(item.Volume)),
-                                time: chartData.volume_vs_close.map(item => item.time),
+                                data: customSort(chartData.volume_vs_close, 'close').map(item => Number(item.Volume)),
+                                time: customSort(chartData.volume_vs_close, 'close').map(item => item.time),
                                 backgroundColor: 'rgba(99,102,241,0.7)',
                                 borderRadius: 8,
                                 hoverBackgroundColor: 'rgba(34,211,238,1)',
                                 maxBarThickness: 18
                               }]
                             }}
-                            options={getBarOptions('Volume vs Close', chartData.volume_vs_close.map(item => Number(item.Volume)))}
+                            options={getBarOptions('Volume vs Close', customSort(chartData.volume_vs_close, 'close').map(item => Number(item.Volume)))}
                           />
                         </div>
                       </div>
@@ -651,7 +662,7 @@ const AppContent = () => {
                   </div>
                   {/* Table */}
                   <div className="flex-1 max-w-xs flex items-center justify-center">
-                    <DataTable data={chartData.volume_vs_close} priceField="close" enhanced />
+                    <DataTable data={customSort(chartData.volume_vs_close, 'close')} priceField="close" enhanced />
                   </div>
                 </div>
               )}
@@ -669,18 +680,18 @@ const AppContent = () => {
                         <div style={{ width: `${Math.max(chartData.volume_vs_high.length * 18, 320)}px`, height: '300px', display: 'inline-block' }}>
                           <Bar
                             data={{
-                              labels: chartData.volume_vs_high.map((item, i) => `${item.high} (${i})`),
+                              labels: customSort(chartData.volume_vs_high, 'high').map((item, i) => `${item.high} (${i})`),
                               datasets: [{
                                 label: 'Volume vs High',
-                                data: chartData.volume_vs_high.map(item => Number(item.Volume)),
-                                time: chartData.volume_vs_high.map(item => item.time),
+                                data: customSort(chartData.volume_vs_high, 'high').map(item => Number(item.Volume)),
+                                time: customSort(chartData.volume_vs_high, 'high').map(item => item.time),
                                 backgroundColor: 'rgba(59,130,246,0.7)',
                                 borderRadius: 8,
                                 hoverBackgroundColor: 'rgba(34,211,238,1)',
                                 maxBarThickness: 18
                               }]
                             }}
-                            options={getBarOptions('Volume vs High', chartData.volume_vs_high.map(item => Number(item.Volume)))}
+                            options={getBarOptions('Volume vs High', customSort(chartData.volume_vs_high, 'high').map(item => Number(item.Volume)))}
                           />
                         </div>
                       </div>
@@ -688,7 +699,7 @@ const AppContent = () => {
                   </div>
                   {/* Table */}
                   <div className="flex-1 max-w-xs flex items-center justify-center">
-                    <DataTable data={chartData.volume_vs_high} priceField="high" enhanced />
+                    <DataTable data={customSort(chartData.volume_vs_high, 'high')} priceField="high" enhanced />
                   </div>
                 </div>
               )}
@@ -706,18 +717,18 @@ const AppContent = () => {
                         <div style={{ width: `${Math.max(chartData.volume_vs_low.length * 18, 320)}px`, height: '300px', display: 'inline-block' }}>
                           <Bar
                             data={{
-                              labels: chartData.volume_vs_low.map((item, i) => `${item.low} (${i})`),
+                              labels: customSort(chartData.volume_vs_low, 'low').map((item, i) => `${item.low} (${i})`),
                               datasets: [{
                                 label: 'Volume vs Low',
-                                data: chartData.volume_vs_low.map(item => Number(item.Volume)),
-                                time: chartData.volume_vs_low.map(item => item.time),
+                                data: customSort(chartData.volume_vs_low, 'low').map(item => Number(item.Volume)),
+                                time: customSort(chartData.volume_vs_low, 'low').map(item => item.time),
                                 backgroundColor: 'rgba(59,130,246,0.7)',
                                 borderRadius: 8,
                                 hoverBackgroundColor: 'rgba(34,211,238,1)',
                                 maxBarThickness: 18
                               }]
                             }}
-                            options={getBarOptions('Volume vs Low', chartData.volume_vs_low.map(item => Number(item.Volume)))}
+                            options={getBarOptions('Volume vs Low', customSort(chartData.volume_vs_low, 'low').map(item => Number(item.Volume)))}
                           />
                         </div>
                       </div>
@@ -725,7 +736,7 @@ const AppContent = () => {
                   </div>
                   {/* Table */}
                   <div className="flex-1 max-w-xs flex items-center justify-center">
-                    <DataTable data={chartData.volume_vs_low} priceField="low" enhanced />
+                    <DataTable data={customSort(chartData.volume_vs_low, 'low')} priceField="low" enhanced />
                   </div>
                 </div>
               )}
