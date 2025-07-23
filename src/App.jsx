@@ -37,16 +37,31 @@ ChartJS.register(
   annotationPlugin
 )
 
+const isClean = (val) => {
+  const float = parseFloat(val);
+  // Check if up to 6 decimal points it's identical
+  return parseFloat(float.toFixed(6)) === parseFloat(val);
+};
+
 function customSort(data, key = "open") {
-  return [...data].sort((a, b) => {
-    const aStr = a[key].toString();
-    const bStr = b[key].toString();
-    if (aStr.length !== bStr.length) {
-      return aStr.length - bStr.length;
+  const clean = [];
+  const dirty = [];
+
+  for (const item of data) {
+    if (isClean(item[key])) {
+      clean.push(item);
+    } else {
+      dirty.push(item);
     }
-    return parseFloat(aStr) - parseFloat(bStr);
-  });
+  }
+
+  // Sort each group by actual float value
+  clean.sort((a, b) => parseFloat(a[key]) - parseFloat(b[key]));
+  dirty.sort((a, b) => parseFloat(a[key]) - parseFloat(b[key]));
+
+  return [...clean, ...dirty];
 }
+
 
 // Wrap the main app content with authentication check
 const AppContent = () => {
