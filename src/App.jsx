@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Line, Bar, Doughnut } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
@@ -85,6 +85,59 @@ const AppContent = () => {
   const [showTradingViewModal, setShowTradingViewModal] = useState(false);
   const [credentialsLoading, setCredentialsLoading] = useState(false);
   const [pendingChartData, setPendingChartData] = useState(null); // Store chart click data while getting credentials
+  const [clickedBarsCount, setClickedBarsCount] = useState(0); // Track number of clicked bars
+  const [clickedBars, setClickedBars] = useState([]); // Store all clicked bars data
+  const [saveButtonText, setSaveButtonText] = useState("Save It (0 bars)"); // Button text state
+
+  // Load existing click count and clicked bars data on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Load click count
+        const countResponse = await fetch('https://trade-backend-88u2.onrender.com/get-trigger-data-count');
+        if (countResponse.ok) {
+          const countData = await countResponse.json();
+          setClickedBarsCount(countData.count || 0);
+        }
+        
+        // Load clicked bars data
+        const barsResponse = await fetch('https://trade-backend-88u2.onrender.com//get-trigger-data');
+        if (barsResponse.ok) {
+          const barsData = await barsResponse.json();
+          setClickedBars(barsData.data || []);
+        }
+      } catch (err) {
+        console.log('Could not load data:', err);
+      }
+    };
+    
+    loadData();
+    }, []);
+  
+  // Update save button text when clickedBars changes
+  useEffect(() => {
+    setSaveButtonText(`Save It (${clickedBars.length} bars)`);
+  }, [clickedBars]);
+  
+  // Function to send clicked bars data to Chrome Extension
+  const saveToChromeExtension = () => {
+    if (clickedBars.length === 0) {
+      console.log('No bars data to save');
+      return;
+    }
+    
+    // Send data to Chrome Extension via postMessage
+    window.postMessage({
+      type: "SAVE_TV_BARS",
+      barsData: clickedBars
+    }, "*");
+    
+    console.log("✅ Sent bars data to extension:", clickedBars);
+    
+    // Show sent feedback
+    setSaveButtonText("✅ Sent!");
+    setTimeout(() => setSaveButtonText(`Save It (${clickedBars.length} bars)`), 2000);
+  };
 
   // Helper to extract script name and timeframe from file name
   function extractInfoFromFileName(fileName) {
@@ -280,7 +333,7 @@ const AppContent = () => {
       };
 
       // Send to old Python backend with user's JWT for credential retrieval
-      const response = await fetch('http://localhost:8000/trigger-tradingview', {
+      const response = await fetch('https://trade-backend-88u2.onrender.com/trigger-tradingview', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -295,6 +348,12 @@ const AppContent = () => {
 
       const result = await response.json();
       console.log('✅ TradingView trigger successful:', result);
+      
+      // Update click count after successful trigger
+      setClickedBarsCount(prev => prev + 1);
+      
+      // Update clicked bars data
+      setClickedBars(prev => [...prev, chartClickData]);
     } catch (error) {
       console.error('❌ TradingView trigger failed:', error);
     }
@@ -320,34 +379,31 @@ const AppContent = () => {
       // Extract real-time data from the clicked bar
       const price = dataset.labels[dataIndex]?.split(' ')[0]; // Get just the price without the index
       const volume = dataset.data[dataIndex];
-      const timestamp = dataset.time[dataIndex];
       const source = 'click';
 
       // Validate all required data is present and valid
-      if (!formData.scriptName || !formData.timeframe || !price || !timestamp || !volume || source !== 'click') {
+      if (!formData.scriptName || !formData.timeframe || !price || !volume || source !== 'click') {
         console.warn('❌ Invalid data, skipping trigger:', {
           symbol: formData.scriptName,
           timeframe: formData.timeframe,
           price,
           volume,
-          timestamp,
           source
         });
         return;
       }
 
-      // Build the payload with all required fields
+      // Build the payload with user-selected start/end times (not bar timestamp)
       const chartClickData = {
         symbol: formData.scriptName,
         timeframe: formData.timeframe,
         price: price,
         volume: volume,
-        timestamp: timestamp,
         source: source,
         trendline_color: colorMap[chartTitle],
         jwt_token: localStorage.getItem('token'),
-        start_time: formData.startTime ? formData.startTime.replace('T', ' ') : '', // Replace T with space
-        end_time: formData.endTime ? formData.endTime.replace('T', ' ') : ''        // Replace T with space
+        start_time: formData.startTime ? formData.startTime.replace('T', ' ') : '', // User's selected start time
+        end_time: formData.endTime ? formData.endTime.replace('T', ' ') : ''        // User's selected end time
       };
 
       // Check if user has TradingView credentials
@@ -476,8 +532,28 @@ const AppContent = () => {
   }
 
   const handleSubmit = async () => {
+    // Check if user is logged in
+    if (!user) {
+      alert('Please login to generate charts');
+      return;
+    }
+    
     if (!selectedFile) return;
     setLoading(true);
+    
+    // 🧹 Clear previous bar click data when generating new chart
+    try {
+      await fetch('https://trade-backend-88u2.onrender.com/clear-trigger-data', {
+        method: 'POST'
+      });
+      console.log('🧹 Previous bar click data cleared');
+      // Reset frontend counter and clicked bars
+      setClickedBarsCount(0);
+      setClickedBars([]);
+    } catch (err) {
+      console.log('⚠️ Could not clear previous data:', err);
+    }
+    
     // Use the latest formData state
     const script = formData.scriptName || '';
     const timeframe = formData.timeframe || '';
@@ -532,11 +608,44 @@ const AppContent = () => {
 
   // Regular user dashboard (for ALL users including admins on home page)
   return (
-    <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-      <div className="px-4 py-6 sm:px-0">
-      <h1 className="text-3xl font-extrabold text-gray-800 mb-2 text-center">TradingView Uploader</h1>
-      <p className="text-gray-500 text-center mb-4">Upload your TradingView CSV and generate charts with ease</p>
+    <>
+      {/* Header with Navigation */}
+      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold text-gray-900">TradingView Uploader</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <ProfileIcon />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <h1 className="text-3xl font-extrabold text-gray-800 mb-2 text-center">TradingView Uploader</h1>
+          <p className="text-gray-500 text-center mb-4">Upload your TradingView CSV and generate charts with ease</p>
+          
+          {/* Bar Click Counter */}
+          {clickedBarsCount > 0 && (
+            <div className="text-center mb-4">
+              <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                <span className="mr-2">📊</span>
+                {clickedBarsCount} bar{clickedBarsCount !== 1 ? 's' : ''} clicked
+              </div>
+            </div>
+          )}
         <div className="flex flex-col items-center min-h-[60vh] justify-center">
+          {/* Login Required Message */}
+          {!user && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
+              <p className="text-blue-800 font-medium">🔐 Login required to generate charts</p>
+              <p className="text-blue-600 text-sm mt-1">Please sign in to upload files and create charts</p>
+            </div>
+          )}
+          
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 max-w-md w-full flex flex-col items-center gap-8">
            
             <div
@@ -594,11 +703,15 @@ const AppContent = () => {
               </div>
               <button
                 type="button"
-                className="mt-2 w-full py-3 rounded-lg bg-gray-900 text-white font-semibold text-lg shadow-md hover:bg-gray-800 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2"
-                disabled={loading || !selectedFile}
+                className={`mt-2 w-full py-3 rounded-lg font-semibold text-lg shadow-md transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 ${
+                  !user 
+                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
+                    : 'bg-gray-900 text-white hover:bg-gray-800'
+                }`}
+                disabled={loading || !selectedFile || !user}
                 onClick={handleSubmit}
               >
-                {loading ? 'Processing...' : 'Generate Chart'}
+                {!user ? 'Login Required' : (loading ? 'Processing...' : 'Generate Chart')}
               </button>
             </div>
           </div>
@@ -755,6 +868,24 @@ const AppContent = () => {
                   </div>
                 </div>
               )}
+              
+              {/* Save It Button - Only show when there are clicked bars */}
+              {clickedBars.length > 0 && (
+                <div className="text-center mt-8">
+                  <button
+                    onClick={saveToChromeExtension}
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-all duration-200 transform hover:scale-105 flex items-center justify-center mx-auto gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    </svg>
+                    {saveButtonText}
+                  </button>
+                  <p className="text-gray-500 text-sm mt-2">
+                    Sends clicked bars data to Chrome Extension
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -772,6 +903,7 @@ const AppContent = () => {
         />
       )}
     </main>
+    </>
   );
 };
 
