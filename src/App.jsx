@@ -101,7 +101,7 @@ const AppContent = () => {
         }
         
         // Load clicked bars data
-        const barsResponse = await fetch('https://trade-backend-88u2.onrender.com//get-trigger-data');
+        const barsResponse = await fetch('https://trade-backend-88u2.onrender.com/get-trigger-data');
         if (barsResponse.ok) {
           const barsData = await barsResponse.json();
           setClickedBars(barsData.data || []);
