@@ -273,7 +273,7 @@ const AppContent = () => {
     if (!user) return false;
     
     try {
-      const response = await fetch('http://localhost:5000/api/profile/tradingview-credentials', {
+      const response = await fetch('https://admin-ones.onrender.com/api/profile/tradingview-credentials', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
@@ -294,7 +294,7 @@ const AppContent = () => {
   const saveTradingViewCredentials = async (credentials) => {
     setCredentialsLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/profile/tradingview-credentials', {
+      const response = await fetch('https://admin-ones.onrender.com/api/profile/tradingview-credentials', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
