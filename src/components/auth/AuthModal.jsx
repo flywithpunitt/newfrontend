@@ -29,17 +29,12 @@ const AuthModal = ({ mode, onClose, onSwitchMode }) => {
     setLoading(true);
 
     try {
-      let success;
       if (mode === 'login') {
-        success = await login(formData.email, formData.password);
-      } else {
-        success = await signup(formData.email, formData.password, formData.name);
-      }
-
-      if (success) {
+        await login(formData.email, formData.password);
         onClose();
       } else {
-        setError(mode === 'login' ? 'Invalid credentials' : 'Signup failed');
+        await signup(formData.email, formData.password, formData.name);
+        onClose();
       }
     } catch (err) {
       setError(err.message);
