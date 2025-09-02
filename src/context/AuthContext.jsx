@@ -1,16 +1,14 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
-const AuthContext = createContext(null);
+const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in on mount
     const token = localStorage.getItem('token');
     if (token) {
-      // Verify token with backend
       fetchUserData(token);
     } else {
       setLoading(false);
@@ -21,20 +19,19 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await fetch('https://admin-ones.onrender.com/api/profile/me', {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${token}`,
+        },
       });
+
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
       } else {
-        // Token is invalid
         localStorage.removeItem('token');
-        setUser(null);
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
-      setUser(null);
+      localStorage.removeItem('token');
     } finally {
       setLoading(false);
     }
@@ -50,6 +47,14 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ email, password }),
       });
 
+      if (response.status === 403) {
+        const data = await response.json();
+        if (data.alreadyLoggedIn) {
+          // User is already logged in on another device
+          throw new Error(`Already logged in on ${data.deviceInfo.deviceType} (${data.deviceInfo.browser} on ${data.deviceInfo.os})`);
+        }
+      }
+
       if (!response.ok) {
         throw new Error('Login failed');
       }
@@ -60,7 +65,7 @@ export const AuthProvider = ({ children }) => {
       return true;
     } catch (error) {
       console.error('Login error:', error);
-      return false;
+      throw error; // Re-throw to show error message in UI
     }
   };
 
@@ -84,13 +89,27 @@ export const AuthProvider = ({ children }) => {
       return true;
     } catch (error) {
       console.error('Signup error:', error);
-      return false;
+      throw error;
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
+  const logout = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        await fetch('https://admin-ones.onrender.com/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('token');
+      setUser(null);
+    }
   };
 
   const createUser = async (userData) => {
