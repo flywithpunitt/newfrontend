@@ -107,6 +107,30 @@ const AdminDashboard = () => {
     }
   };
 
+    const handleForceLogout = async (userId, userName) => {
+    if (!confirm(`Are you sure you want to force logout ${userName}? This will end their current session and allow them to log in again.`)) return;
+
+    try {
+      const response = await fetch(`https://admin-ones.onrender.com/api/auth/force-logout/${userId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (response.ok) {
+        alert(`${userName} has been force logged out successfully. They can now log in again.`);
+        fetchUsers();
+      } else {
+        const errorData = await response.json();
+        alert(`Error: ${errorData.message || 'Failed to force logout user'}`);
+      }
+    } catch (error) {
+      console.error('Error force logging out user:', error);
+      alert('Error force logging out user');
+    }
+  };
+
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
   };
@@ -249,12 +273,21 @@ const AdminDashboard = () => {
                       {new Date(user.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleDeleteUser(user._id)}
-                        className="text-red-600 hover:text-red-900 transition-colors duration-200"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex space-x-3">
+                        <button
+                          onClick={() => handleForceLogout(user._id, user.name)}
+                          className="text-orange-600 hover:text-orange-900 transition-colors duration-200"
+                          title="Force logout user from all devices"
+                        >
+                          Force Logout
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(user._id)}
+                          className="text-red-600 hover:text-red-900 transition-colors duration-200"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
