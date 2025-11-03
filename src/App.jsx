@@ -22,7 +22,7 @@ export default function App() {
           please renew or purchase a subscription plan.
         </p>
         <div className="text-sm text-gray-400 mt-8">
-          © {new Date().getFullYear()} Client Name. All rights reserved.
+          © {new Date().getFullYear()} Vercel. All rights reserved.
         </div>
       </motion.div>
     </div>
