@@ -1,7 +1,6 @@
 // App.jsx
 import { Lock } from "lucide-react";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
 
 export default function App() {
   return (
